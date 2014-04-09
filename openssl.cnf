@@ -6,15 +6,14 @@ default_ca      = CA_default
 
 [ CA_default ]
 dir             = .
-certs           = $dir/certs
-new_certs_dir   = $dir/newcerts
+new_certs_dir   = $dir/signed
 crl_dir         = $dir/crl
-database        = $dir/index
+database        = $dir/inventory.txt
 
 certificate     = $dir/ca_crt.pem
 serial          = $dir/serial
 crl             = $dir/ca_crl.pem
-private_key     = $dir/private/ca_key.pem
+private_key     = $dir/ca_key.pem
 RANDFILE        = $dir/private/.rand
 
 x509_extensions = usr_cert
@@ -63,7 +62,7 @@ emailAddress            = optional
 ####################################################################
 [ req ]
 default_bits            = 2048
-default_keyfile         = ./private/ca_key.pem
+default_keyfile         = ca_key.pem
 default_md              = sha1
 
 # prompt                  = no
