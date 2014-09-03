@@ -1,7 +1,28 @@
 require 'erb'
 
-desc "Create a new CA from scratch"
-task :init => [:genca, :gencrl, :genpub]
+RAKE_DIR    = Rake.application.original_dir
+ROOT_CA_DIR = File.join(RAKE_DIR, 'rootca_ssldir')
+
+def ca
+  ca_dir = File.join(RAKE_DIR, 'ca', 'root')
+  case block_given?
+  when true
+    Dir.chdir(ROOT_CA_DIR) do
+      yield
+    end
+  when false
+    ROOT_CA_DIR
+  end
+end
+
+def dirs
+  [ ca,
+    File.join(RAKE_DIR, 'certificate_requests'),
+    File.join(RAKE_DIR, 'certs'),
+    File.join(RAKE_DIR, 'private_keys'),
+    File.join(RAKE_DIR, 'public_keys')
+  ]
+end
 
 def log(msg)
   puts ">>> %s" % msg
@@ -17,43 +38,19 @@ def ask(prompt, env, default="")
   end
 
   resp = STDIN.gets.chomp
-
   resp.empty? ? default : resp
 end
-
-def ca
-  ca_dir = File.join(rakedir, 'ca', 'root')
-  case block_given?
-  when true
-    Dir.chdir(ca_dir) do
-      yield
-    end
-  when false
-    ca_dir
-  end
-end
-
-def rakedir
-  Rake.application.original_dir
-end
-
-def dirs
-  [ ca,
-    File.join(rakedir, 'certificate_requests'),
-    File.join(rakedir, 'certs'),
-    File.join(rakedir, 'private_keys'),
-    File.join(rakedir, 'public_keys')
-  ]
-end 
-
 
 def has_ca?
   File.exist?("#{ca}/serial") && File.exist?("#{ca}/private")
 end
 
 def opensslcnf
-  File.join(rakedir, 'openssl.cnf')
+  File.join(RAKE_DIR, 'openssl.cnf')
 end
+
+desc "Create a new CA from scratch"
+task :init => [:genca, :gencrl, :genpub]
 
 desc "Create a new CSR and private key"
 task :gencsr do
@@ -83,8 +80,8 @@ task :sign do
   abort "Please create a CA using 'rake init'" unless has_ca?
 
   ENV['CN'] = 'certificate_requests'
-  Dir.glob("#{rakedir}/certificate_requests/*.pem").each do |csr|
-    certname = File.join(rakedir, 'certs', "#{File.basename(csr)}")
+  Dir.glob("#{RAKE_DIR}/certificate_requests/*.pem").each do |csr|
+    certname = File.join(RAKE_DIR, 'certs', "#{File.basename(csr)}")
     log "Signing #{csr} creating #{certname}"
     ca { sh "openssl ca -batch -config #{opensslcnf} -in #{csr} -out #{certname}" }
     FileUtils.rm csr if File.exist?(certname)
@@ -136,7 +133,7 @@ task :destroy_ca do
   confirm = ask("Type 'yes' to destroy the CA", "", nil)
   abort "aborting" unless confirm == 'yes'
 
-  [dirs, File.join(rakedir, 'ca')].flatten.each do |dir|
+  [dirs, File.join(RAKE_DIR, 'ca')].flatten.each do |dir|
     log "Removing directory #{dir}"
     FileUtils.rm_rf(dir)
   end
